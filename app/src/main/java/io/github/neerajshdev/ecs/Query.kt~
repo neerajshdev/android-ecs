@@ -1,0 +1,148 @@
+package com.codeasur.exp.ecs
+
+import kotlin.reflect.KClass
+
+/**
+ * Represents a query that can be used to match entities and events.
+ * Queries are used by systems to filter which entities and events they process.
+ */
+class Query private constructor(
+    val requiredComponents: Set<Class<out Component>>,
+    val excludedComponents: Set<Class<out Component>>,
+    val eventTypes: Set<KClass<out Event>>
+) {
+    
+    /**
+     * Checks if an entity matches this query's component requirements
+     */
+    fun matchesEntity(entity: Entity): Boolean {
+        // Check required components
+        for (componentType in requiredComponents) {
+            if (!ComponentManager.hasComponent(entity, componentType)) {
+                return false
+            }
+        }
+        
+        // Check excluded components
+        for (componentType in excludedComponents) {
+            if (ComponentManager.hasComponent(entity, componentType)) {
+                return false
+            }
+        }
+        
+        return true
+    }
+    
+    /**
+     * Checks if an event type matches this query's event type requirements
+     */
+    fun matchesEventType(eventType: KClass<out Event>): Boolean {
+        return eventTypes.isEmpty() || eventTypes.contains(eventType)
+    }
+    
+    /**
+     * Gets all entities that match this query
+     */
+    fun getMatchingEntities(): List<Entity> {
+        if (requiredComponents.isEmpty()) {
+            // No components required, so either return all entities or filter by excluded components
+            val allEntities = ComponentManager.getAllEntities()
+            return if (excludedComponents.isEmpty()) {
+                allEntities
+            } else {
+                allEntities.filter { entity -> matchesEntity(entity) }
+            }
+        }
+        
+        // Start with entities that have the first required component
+        val firstComponentType = requiredComponents.first()
+        var matchingEntities = ComponentManager.getEntitiesWithComponent(firstComponentType)
+        
+        // Filter by remaining requirements
+        if (requiredComponents.size > 1 || excludedComponents.isNotEmpty()) {
+            matchingEntities = matchingEntities.filter { entity -> matchesEntity(entity) }
+        }
+        
+        return matchingEntities
+    }
+    
+    /**
+     * Builder class for creating Query instances
+     */
+    class Builder {
+        private val requiredComponents = mutableSetOf<Class<out Component>>()
+        private val excludedComponents = mutableSetOf<Class<out Component>>()
+        private val eventTypes = mutableSetOf<KClass<out Event>>()
+        
+        /**
+         * Require entities to have this component
+         */
+        fun with(componentType: Class<out Component>): Builder {
+            requiredComponents.add(componentType)
+            return this
+        }
+        
+        /**
+         * Require entities to have these components
+         */
+        fun withAll(componentTypes: Collection<Class<out Component>>): Builder {
+            requiredComponents.addAll(componentTypes)
+            return this
+        }
+        
+        /**
+         * Require entities to NOT have this component
+         */
+        fun without(componentType: Class<out Component>): Builder {
+            excludedComponents.add(componentType)
+            return this
+        }
+        
+        /**
+         * Require entities to NOT have any of these components
+         */
+        fun withoutAny(componentTypes: Collection<Class<out Component>>): Builder {
+            excludedComponents.addAll(componentTypes)
+            return this
+        }
+        
+        /**
+         * Listen for this event type
+         */
+        fun listenTo(eventType: KClass<out Event>): Builder {
+            eventTypes.add(eventType)
+            return this
+        }
+        
+        /**
+         * Listen for these event types
+         */
+        fun listenToAll(eventTypes: Collection<KClass<out Event>>): Builder {
+            this.eventTypes.addAll(eventTypes)
+            return this
+        }
+        
+        /**
+         * Build the query
+         */
+        fun build(): Query {
+            return Query(requiredComponents, excludedComponents, eventTypes)
+        }
+    }
+    
+    companion object {
+        /**
+         * Create a new query builder
+         */
+        fun builder(): Builder = Builder()
+    }
+
+    /**
+     * Adds multiple required component types to the query using vararg.
+     * Usage: query.with(PositionComponent::class, VelocityComponent::class)
+     */
+    fun with(vararg types: KClass<out Component>): Query {
+        types.forEach { this.with(it) }
+        return this
+    }
+} 
