@@ -7,6 +7,10 @@ production ready library and is not intended to be used in production.
 
 ---
 
+### Screenshots
+
+<img src="screenshot1.png" width="200"  alt="ecs-android todo app"/>
+
 ## What is ECS?
 
 **Entity Component System (ECS)** is a design pattern that separates data (components) from logic (
@@ -46,8 +50,6 @@ non-UI testing.
 
 ---
 
-### Screenshots
 
-<img src="screenshot1.png" width="200"  alt="ecs-android todo app"/>
 
 
